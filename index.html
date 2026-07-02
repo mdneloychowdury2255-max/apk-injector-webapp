@@ -6,112 +6,251 @@
     <title>APK Injector</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--tg-theme-bg-color,#1a1a2e);color:var(--tg-theme-text-color,#e0e0e0);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px}
-        .container{width:100%;max-width:420px}
-        .header{text-align:center;padding:20px 0}
-        .header h1{font-size:22px;color:var(--tg-theme-button-color,#6c63ff);margin-bottom:6px}
-        .header p{font-size:13px;opacity:.7}
-        .upload-zone{border:2px dashed var(--tg-theme-hint-color,#444);border-radius:16px;padding:40px 20px;text-align:center;cursor:pointer;transition:all .3s;margin:20px 0;background:var(--tg-theme-secondary-bg-color,#16213e)}
-        .upload-zone:hover,.upload-zone.dragover{border-color:var(--tg-theme-button-color,#6c63ff);background:rgba(108,99,255,.1)}
-        .upload-zone .icon{font-size:48px;margin-bottom:12px;display:block}
-        .upload-zone .text{font-size:16px;font-weight:600;margin-bottom:6px}
-        .upload-zone .hint{font-size:12px;opacity:.6}
-        .upload-zone .file-info{font-size:13px;margin-top:10px;color:var(--tg-theme-button-color,#6c63ff)}
-        .progress{display:none;margin:20px 0}
-        .progress-bar{height:6px;background:var(--tg-theme-secondary-bg-color,#16213e);border-radius:3px;overflow:hidden}
-        .progress-fill{height:100%;background:var(--tg-theme-button-color,#6c63ff);width:0%;transition:width .3s;border-radius:3px}
-        .progress-text{text-align:center;font-size:13px;margin-top:8px;opacity:.7}
-        .status{display:none;margin:20px 0;padding:16px;border-radius:12px;text-align:center;font-size:14px}
-        .status.success{background:rgba(76,175,80,.15);color:#4CAF50;display:block}
-        .status.error{background:rgba(244,67,54,.15);color:#f44336;display:block}
-        .btn{width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;background:var(--tg-theme-button-color,#6c63ff);color:var(--tg-theme-button-text-color,#fff);margin-top:12px}
-        .btn:disabled{opacity:.5;cursor:not-allowed}
-        .btn.hidden{display:none}
-        input[type="file"]{display:none}
-        .footer{text-align:center;font-size:11px;opacity:.4;margin-top:30px}
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--tg-theme-bg-color, #1a1a2e);
+            color: var(--tg-theme-text-color, #e0e0e0);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .container { width: 100%; max-width: 420px; }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+        }
+        .header h1 { font-size: 22px; color: var(--tg-theme-button-color, #6c63ff); margin-bottom: 6px; }
+        .header p { font-size: 13px; opacity: 0.7; }
+
+        .upload-zone {
+            border: 2px dashed var(--tg-theme-hint-color, #444);
+            border-radius: 16px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 20px 0;
+            background: var(--tg-theme-secondary-bg-color, #16213e);
+        }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--tg-theme-button-color, #6c63ff);
+            background: rgba(108, 99, 255, 0.1);
+        }
+        .upload-zone .icon { font-size: 48px; margin-bottom: 12px; display: block; }
+        .upload-zone .text { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+        .upload-zone .hint { font-size: 12px; opacity: 0.6; }
+        .upload-zone .file-info { font-size: 13px; margin-top: 10px; color: var(--tg-theme-button-color, #6c63ff); }
+
+        .progress { display: none; margin: 20px 0; }
+        .progress-bar {
+            height: 6px;
+            background: var(--tg-theme-secondary-bg-color, #16213e);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--tg-theme-button-color, #6c63ff);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 3px;
+        }
+        .progress-text { text-align: center; font-size: 13px; margin-top: 8px; opacity: 0.7; }
+
+        .status {
+            display: none;
+            margin: 20px 0;
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 14px;
+        }
+        .status.success { background: rgba(76, 175, 80, 0.15); color: #4CAF50; display: block; }
+        .status.error { background: rgba(244, 67, 54, 0.15); color: #f44336; display: block; }
+        .status.info { background: rgba(33, 150, 243, 0.15); color: #2196F3; display: block; }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            background: var(--tg-theme-button-color, #6c63ff);
+            color: var(--tg-theme-button-text-color, #fff);
+            margin-top: 12px;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn.hidden { display: none; }
+
+        input[type="file"] { display: none; }
+
+        .footer { text-align: center; font-size: 11px; opacity: 0.4; margin-top: 30px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>APK Injector</h1>
+            <h1>📦 APK Injector</h1>
             <p>Upload your APK & get signed injected APK</p>
         </div>
+
         <div class="upload-zone" id="dropZone">
             <span class="icon">📁</span>
             <div class="text">Click to select APK</div>
-            <div class="hint">or drag and drop<br>Max: 2GB</div>
+            <div class="hint">or drag & drop<br>Max: 2GB • Any Android APK</div>
             <div class="file-info" id="fileInfo"></div>
         </div>
         <input type="file" id="fileInput" accept=".apk">
+
         <div class="progress" id="progress">
             <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-            <div class="progress-text" id="progressText">Uploading...</div>
+            <div class="progress-text" id="progressText">Uploading to Litterbox...</div>
         </div>
+
         <div class="status" id="status"></div>
-        <button class="btn" id="uploadBtn" disabled>Upload & Inject</button>
-        <button class="btn hidden" id="newBtn" onclick="resetAll()">Inject Another</button>
-        <div class="footer">Powered by tmpfiles.org</div>
+
+        <button class="btn" id="uploadBtn">📤 Upload & Inject</button>
+        <button class="btn hidden" id="newBtn" onclick="resetAll()">🔄 Inject Another</button>
+
+        <div class="footer">Powered by Litterbox + GitHub Actions</div>
     </div>
+
     <script>
-        let file = null;
+        let selectedFile = null;
         let tg = window.Telegram.WebApp;
+
         tg.expand();
         tg.MainButton.hide();
-        const dz = document.getElementById('dropZone');
-        const fi = document.getElementById('fileInput');
-        const finfo = document.getElementById('fileInfo');
-        const prog = document.getElementById('progress');
-        const pf = document.getElementById('progressFill');
-        const pt = document.getElementById('progressText');
-        const st = document.getElementById('status');
-        const ub = document.getElementById('uploadBtn');
-        const nb = document.getElementById('newBtn');
-        dz.onclick = () => fi.click();
-        fi.onchange = (e) => { if (e.target.files.length > 0) handleFile(e.target.files[0]); };
-        dz.ondragover = (e) => { e.preventDefault(); dz.classList.add('dragover'); };
-        dz.ondragleave = () => dz.classList.remove('dragover');
-        dz.ondrop = (e) => { e.preventDefault(); dz.classList.remove('dragover'); if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]); };
-        function handleFile(f) {
-            if (!f.name.endsWith('.apk')) { showStatus('Only .apk files allowed', 'error'); return; }
-            file = f;
-            finfo.textContent = f.name + ' (' + (f.size / 1048576).toFixed(1) + ' MB)';
-            ub.disabled = false;
+
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const progress = document.getElementById('progress');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const status = document.getElementById('status');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const newBtn = document.getElementById('newBtn');
+
+        dropZone.onclick = () => fileInput.click();
+        fileInput.onchange = (e) => {
+            if (e.target.files.length > 0) handleFile(e.target.files[0]);
+        };
+
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
+        dropZone.ondragleave = () => dropZone.classList.remove('dragover');
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+        };
+
+        function handleFile(file) {
+            if (!file.name.endsWith('.apk')) {
+                showStatus('❌ Only .apk files allowed', 'error');
+                return;
+            }
+            selectedFile = file;
+            fileInfo.textContent = `📄 ${file.name} (${(file.size / 1048576).toFixed(1)} MB)`;
+            uploadBtn.disabled = false;
             hideStatus();
         }
-        ub.onclick = async function() {
-            if (!file || file.size > 2147483648) return;
-            ub.disabled = true;
+
+        uploadBtn.onclick = async function() {
+            if (!selectedFile) return;
+
+            if (selectedFile.size > 2147483648) {
+                showStatus('❌ File too large (max 2GB)', 'error');
+                return;
+            }
+
+            uploadBtn.disabled = true;
             showProgress(5);
+
             try {
-                showProgress(10, 'Uploading...');
-                let fd = new FormData();
-                fd.append('file', file);
-                let resp = await fetch('https://tmpfiles.org/api/v1/upload', { method: 'POST', body: fd });
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                let data = await resp.json();
-                if (!data || data.status !== 'success' || !data.data || !data.data.url)
-                    throw new Error('Upload failed');
-                let dlUrl = data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-                showProgress(95, 'Complete! Sending to bot...');
-                tg.sendData(JSON.stringify({ file_url: dlUrl }));
-                showProgress(100, 'Sent for injection!');
-                showStatus('Sent for injection!', 'success');
-                ub.classList.add('hidden');
-                nb.classList.remove('hidden');
+                // Upload to Litterbox (Catbox temp — CORS-friendly!)
+                showProgress(10, 'Uploading to Litterbox...');
+                let formData = new FormData();
+                formData.append('reqtype', 'fileupload');
+                formData.append('time', '24h');
+                formData.append('fileToUpload', selectedFile);
+
+                let xhr = new XMLHttpRequest();
+                xhr.open('POST', 'https://litterbox.catbox.moe/resources/internals/api.php');
+
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        let pct = 10 + Math.round((e.loaded / e.total) * 80);
+                        showProgress(pct, `Uploading... ${(e.loaded / 1048576).toFixed(1)}MB / ${(e.total / 1048576).toFixed(1)}MB`);
+                    }
+                };
+
+                let uploadResult = await new Promise((resolve, reject) => {
+                    xhr.onload = () => resolve(xhr.responseText);
+                    xhr.onerror = () => reject(new Error('Upload failed'));
+                    xhr.send(formData);
+                });
+
+                if (!uploadResult || !uploadResult.startsWith('https://')) throw new Error('Upload failed: ' + uploadResult);
+
+                let fileUrl = uploadResult.trim();
+                showProgress(95, 'Upload complete! Sending to bot...');
+
+                // Send URL back to Bot via Telegram Web App
+                tg.sendData(JSON.stringify({
+                    file_url: fileUrl
+                }));
+
+                showProgress(100, '✅ Sent for injection!');
+
             } catch (err) {
-                showStatus('Upload failed: ' + err.message, 'error');
-                ub.disabled = false;
+                console.error(err);
+                showStatus('❌ Upload failed: ' + err.message, 'error');
+                uploadBtn.disabled = false;
                 hideProgress();
             }
         };
-        function showProgress(pct, text) { prog.style.display = 'block'; pf.style.width = pct + '%'; if (text) pt.textContent = text; }
-        function hideProgress() { prog.style.display = 'none'; }
-        function showStatus(text, type) { st.className = 'status ' + type; st.textContent = text; st.style.display = 'block'; }
-        function hideStatus() { st.style.display = 'none'; }
-        function resetAll() { file = null; fi.value = ''; finfo.textContent = ''; ub.disabled = true; ub.classList.remove('hidden'); nb.classList.add('hidden'); hideStatus(); hideProgress(); }
-        document.addEventListener('DOMContentLoaded', () => { tg.ready(); });
+
+        function showProgress(pct, text) {
+            progress.style.display = 'block';
+            progressFill.style.width = pct + '%';
+            if (text) progressText.textContent = text;
+        }
+
+        function hideProgress() {
+            progress.style.display = 'none';
+        }
+
+        function showStatus(text, type) {
+            status.className = 'status ' + type;
+            status.textContent = text;
+            status.style.display = 'block';
+        }
+
+        function hideStatus() {
+            status.style.display = 'none';
+        }
+
+        function resetAll() {
+            selectedFile = null;
+            fileInput.value = '';
+            fileInfo.textContent = '';
+            uploadBtn.disabled = true;
+            uploadBtn.classList.remove('hidden');
+            newBtn.classList.add('hidden');
+            hideStatus();
+            hideProgress();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            tg.ready();
+        });
     </script>
 </body>
 </html>
