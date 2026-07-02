@@ -196,7 +196,7 @@
                 });
 
                 let uploadData = JSON.parse(uploadResult);
-                if (!uploadData || uploadData.status !== 'success' || !uploadData.data?.url) 
+                if (!uploadData || uploadData.status !== 'success' || !uploadData.data || !uploadData.data.url) 
                     throw new Error('Upload failed: ' + uploadResult);
 
                 let fileUrl = uploadData.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
