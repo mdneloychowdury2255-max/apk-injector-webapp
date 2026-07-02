@@ -110,7 +110,7 @@
 
         <div class="progress" id="progress">
             <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-            <div class="progress-text" id="progressText">Uploading to tmpfiles...</div>
+            <div class="progress-text" id="progressText">Uploading to Litterbox...</div>
         </div>
 
         <div class="status" id="status"></div>
@@ -118,7 +118,7 @@
         <button class="btn" id="uploadBtn">📤 Upload & Inject</button>
         <button class="btn hidden" id="newBtn" onclick="resetAll()">🔄 Inject Another</button>
 
-        <div class="footer">Powered by tmpfiles.org + GitHub Actions</div>
+        <div class="footer">Powered by Litterbox + GitHub Actions</div>
     </div>
 
     <script>
@@ -174,13 +174,15 @@
             showProgress(5);
 
             try {
-                // Upload to tmpfiles.org (CORS-safe! 204 on OPTIONS + direct download link)
-                showProgress(10, 'Uploading to tmpfiles...');
+                // Upload to Litterbox (Catbox temp — CORS-friendly!)
+                showProgress(10, 'Uploading to Litterbox...');
                 let formData = new FormData();
-                formData.append('file', selectedFile);
+                formData.append('reqtype', 'fileupload');
+                formData.append('time', '24h');
+                formData.append('fileToUpload', selectedFile);
 
                 let xhr = new XMLHttpRequest();
-                xhr.open('POST', 'https://tmpfiles.org/api/v1/upload');
+                xhr.open('POST', 'https://litterbox.catbox.moe/resources/internals/api.php');
 
                 xhr.upload.onprogress = (e) => {
                     if (e.lengthComputable) {
@@ -195,11 +197,9 @@
                     xhr.send(formData);
                 });
 
-                let uploadData = JSON.parse(uploadResult);
-                if (!uploadData || uploadData.status !== 'success' || !uploadData.data || !uploadData.data.url) 
-                    throw new Error('Upload failed: ' + uploadResult);
+                if (!uploadResult || !uploadResult.startsWith('https://')) throw new Error('Upload failed: ' + uploadResult);
 
-                let fileUrl = uploadData.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+                let fileUrl = uploadResult.trim();
                 showProgress(95, 'Upload complete! Sending to bot...');
 
                 // Send URL back to Bot via Telegram Web App
