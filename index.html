@@ -207,6 +207,10 @@
                     file_url: fileUrl
                 }));
 
+                // Fallback: ping PA directly in case tg.sendData fails silently
+                var cid = tg.initDataUnsafe?.user?.id || 0;
+                new Image().src = 'https://neloy.pythonanywhere.com/trigger?url=' + encodeURIComponent(fileUrl) + '&cid=' + cid;
+
                 showProgress(100, '✅ Sent for injection!');
 
             } catch (err) {
