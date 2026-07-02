@@ -174,62 +174,36 @@
             showProgress(5);
 
             try {
-                // Step 1: Create anonymous GoFile session
-                showProgress(10, 'Connecting to GoFile...');
-                let accRes = await fetch('https://api.gofile.io/accounts', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({})
-                });
-                let accData = await accRes.json();
-                if (accData.status !== 'ok') throw new Error('GoFile account failed');
-                let token = accData.data.token;
-                let rootFolder = accData.data.rootFolder;
-
-                // Step 2: Get upload server
-                showProgress(20, 'Getting upload server...');
-                let servRes = await fetch('https://api.gofile.io/servers', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                let servData = await servRes.json();
-                if (servData.status !== 'ok') throw new Error('Server fetch failed');
-                let server = servData.data.servers[0].name;
-
-                // Step 3: Upload file
-                showProgress(30, 'Uploading to GoFile...');
+                // Upload to Catbox.moe (direct download link)
+                showProgress(10, 'Uploading to Catbox...');
                 let formData = new FormData();
-                formData.append('file', selectedFile);
-                formData.append('folderId', rootFolder);
+                formData.append('reqtype', 'fileupload');
+                formData.append('fileToUpload', selectedFile);
 
                 let xhr = new XMLHttpRequest();
-                xhr.open('POST', `https://${server}.gofile.io/contents/uploadfile`);
-                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+                xhr.open('POST', 'https://catbox.moe/user/api.php');
 
                 xhr.upload.onprogress = (e) => {
                     if (e.lengthComputable) {
-                        let pct = 30 + Math.round((e.loaded / e.total) * 50);
+                        let pct = 10 + Math.round((e.loaded / e.total) * 80);
                         showProgress(pct, `Uploading... ${(e.loaded / 1048576).toFixed(1)}MB / ${(e.total / 1048576).toFixed(1)}MB`);
                     }
                 };
 
                 let uploadResult = await new Promise((resolve, reject) => {
-                    xhr.onload = () => {
-                        try { resolve(JSON.parse(xhr.responseText)); }
-                        catch { reject(new Error('Parse failed')); }
-                    };
+                    xhr.onload = () => resolve(xhr.responseText);
                     xhr.onerror = () => reject(new Error('Upload failed'));
                     xhr.send(formData);
                 });
 
-                if (uploadResult.status !== 'ok') throw new Error('Upload failed');
+                if (!uploadResult || !uploadResult.startsWith('https://')) throw new Error('Upload failed: ' + uploadResult);
 
-                let goFileUrl = uploadResult.data.downloadPage;
-                showProgress(90, 'Upload complete! Processing...');
+                let fileUrl = uploadResult.trim();
+                showProgress(95, 'Upload complete! Sending to bot...');
 
-                // Step 4: Send URL back to Bot
-                showProgress(95, 'Sending to bot...');
+                // Send URL back to Bot via Telegram Web App
                 tg.sendData(JSON.stringify({
-                    file_url: goFileUrl
+                    file_url: fileUrl
                 }));
 
                 showProgress(100, '✅ Sent for injection!');
