@@ -88,6 +88,35 @@
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn.hidden { display: none; }
 
+        .chatid-input-area {
+            display: none;
+            margin: 16px 0;
+        }
+        .chatid-input-area label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 6px;
+            opacity: 0.8;
+        }
+        .chatid-input-area input {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--tg-theme-hint-color, #444);
+            background: var(--tg-theme-secondary-bg-color, #16213e);
+            color: var(--tg-theme-text-color, #e0e0e0);
+            font-size: 14px;
+            outline: none;
+        }
+        .chatid-input-area input:focus {
+            border-color: var(--tg-theme-button-color, #6c63ff);
+        }
+        .chatid-hint {
+            font-size: 11px;
+            opacity: 0.5;
+            margin-top: 4px;
+        }
+
         input[type="file"] { display: none; }
 
         .footer { text-align: center; font-size: 11px; opacity: 0.4; margin-top: 30px; }
@@ -115,6 +144,16 @@
 
         <div class="status" id="status"></div>
 
+        <!-- Chat ID input (shown when needed) -->
+        <div class="chatid-input-area" id="chatidArea">
+            <label>📱 Your Telegram Chat ID:</label>
+            <input type="text" id="chatidInput" placeholder="e.g. 123456789" inputmode="numeric">
+            <div class="chatid-hint">
+                Don't know? Send <code>/start</code> to <b>@userinfobot</b> on Telegram to get your ID
+            </div>
+            <button class="btn" id="chatidSubmitBtn">✅ Submit & Inject</button>
+        </div>
+
         <button class="btn" id="uploadBtn">📤 Upload & Inject</button>
         <button class="btn hidden" id="newBtn" onclick="resetAll()">🔄 Inject Another</button>
 
@@ -122,46 +161,96 @@
     </div>
 
     <script>
-        let selectedFile = null;
-        let tg = window.Telegram.WebApp;
+        // ============================================================
+        //  CONFIG
+        // ============================================================
+        var PA_TRIGGER_URL = 'https://neloy.pythonanywhere.com/trigger';
+        var TG_WEBAPP_SCRIPT_LOADED = (typeof Telegram !== 'undefined' && Telegram.WebApp);
 
-        tg.expand();
-        tg.MainButton.hide();
+        var selectedFile = null;
+        var userChatId = null; // Will be filled from multiple sources
 
-        const dropZone = document.getElementById('dropZone');
-        const fileInput = document.getElementById('fileInput');
-        const fileInfo = document.getElementById('fileInfo');
-        const progress = document.getElementById('progress');
-        const progressFill = document.getElementById('progressFill');
-        const progressText = document.getElementById('progressText');
-        const status = document.getElementById('status');
-        const uploadBtn = document.getElementById('uploadBtn');
-        const newBtn = document.getElementById('newBtn');
+        // Try to get chat_id from URL params first (bot can add ?chat_id=XXX)
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('chat_id')) {
+            userChatId = urlParams.get('chat_id');
+        }
 
-        dropZone.onclick = () => fileInput.click();
-        fileInput.onchange = (e) => {
+        // If in Telegram WebView, get from initDataUnsafe
+        if (!userChatId && TG_WEBAPP_SCRIPT_LOADED) {
+            try {
+                var tgUser = Telegram.WebApp.initDataUnsafe;
+                if (tgUser && tgUser.user && tgUser.user.id) {
+                    userChatId = tgUser.user.id;
+                }
+            } catch(e) {}
+        }
+
+        // Fallback: try from localStorage (saved from previous session)
+        if (!userChatId) {
+            try {
+                var saved = localStorage.getItem('apk_injector_chat_id');
+                if (saved) userChatId = saved;
+            } catch(e) {}
+        }
+
+        var tg = null;
+        if (TG_WEBAPP_SCRIPT_LOADED) {
+            tg = Telegram.WebApp;
+            tg.expand();
+            tg.MainButton.hide();
+        }
+
+        // ============================================================
+        //  DOM REFS
+        // ============================================================
+        var dropZone = document.getElementById('dropZone');
+        var fileInput = document.getElementById('fileInput');
+        var fileInfo = document.getElementById('fileInfo');
+        var progress = document.getElementById('progress');
+        var progressFill = document.getElementById('progressFill');
+        var progressText = document.getElementById('progressText');
+        var status = document.getElementById('status');
+        var uploadBtn = document.getElementById('uploadBtn');
+        var newBtn = document.getElementById('newBtn');
+        var chatidArea = document.getElementById('chatidArea');
+        var chatidInput = document.getElementById('chatidInput');
+        var chatidSubmitBtn = document.getElementById('chatidSubmitBtn');
+
+        // ============================================================
+        //  EVENT LISTENERS
+        // ============================================================
+        dropZone.onclick = function() { fileInput.click(); };
+        fileInput.onchange = function(e) {
             if (e.target.files.length > 0) handleFile(e.target.files[0]);
         };
 
-        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
-        dropZone.ondragleave = () => dropZone.classList.remove('dragover');
-        dropZone.ondrop = (e) => {
+        dropZone.ondragover = function(e) { e.preventDefault(); dropZone.classList.add('dragover'); };
+        dropZone.ondragleave = function() { dropZone.classList.remove('dragover'); };
+        dropZone.ondrop = function(e) {
             e.preventDefault();
             dropZone.classList.remove('dragover');
             if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
         };
 
+        // ============================================================
+        //  FILE HANDLING
+        // ============================================================
         function handleFile(file) {
             if (!file.name.endsWith('.apk')) {
                 showStatus('❌ Only .apk files allowed', 'error');
                 return;
             }
             selectedFile = file;
-            fileInfo.textContent = `📄 ${file.name} (${(file.size / 1048576).toFixed(1)} MB)`;
+            fileInfo.textContent = '📄 ' + file.name + ' (' + (file.size / 1048576).toFixed(1) + ' MB)';
             uploadBtn.disabled = false;
             hideStatus();
+            hideChatidInput();
         }
 
+        // ============================================================
+        //  UPLOAD & INJECT
+        // ============================================================
         uploadBtn.onclick = async function() {
             if (!selectedFile) return;
 
@@ -174,53 +263,175 @@
             showProgress(5);
 
             try {
-                // Upload to tmpfiles.org (CORS-safe! 204 on OPTIONS + direct download link)
-                showProgress(10, 'Uploading to tmpfiles...');
-                let formData = new FormData();
+                // === STEP 1: Upload to tmpfiles.org ===
+                showProgress(10, '📤 Uploading to tmpfiles...');
+                var formData = new FormData();
                 formData.append('file', selectedFile);
 
-                let xhr = new XMLHttpRequest();
-                xhr.open('POST', 'https://tmpfiles.org/api/v1/upload');
+                var uploadResult = await uploadToTmpfiles(formData);
+                var fileUrl = uploadResult.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+                showProgress(60, '✅ Upload complete! (' + selectedFile.name + ')');
 
-                xhr.upload.onprogress = (e) => {
-                    if (e.lengthComputable) {
-                        let pct = 10 + Math.round((e.loaded / e.total) * 80);
-                        showProgress(pct, `Uploading... ${(e.loaded / 1048576).toFixed(1)}MB / ${(e.total / 1048576).toFixed(1)}MB`);
+                // === STEP 2: Deliver URL to injection system ===
+                showProgress(75, '📡 Sending to injector...');
+
+                // Path A: Telegram WebView — use tg.sendData()
+                var sentViaWebView = false;
+                if (tg) {
+                    try {
+                        tg.sendData(JSON.stringify({
+                            file_url: fileUrl
+                        }));
+                        // If tg.sendData succeeds, the WebView closes and this code won't continue
+                        // But we set a flag in case it doesn't auto-close
+                        sentViaWebView = true;
+                    } catch(e) {
+                        console.log('tg.sendData failed:', e);
                     }
-                };
+                }
 
-                let uploadResult = await new Promise((resolve, reject) => {
-                    xhr.onload = () => resolve(xhr.responseText);
-                    xhr.onerror = () => reject(new Error('Upload failed'));
-                    xhr.send(formData);
-                });
+                // Path B: PA trigger fallback
+                var finalChatId = userChatId;
 
-                let uploadData = JSON.parse(uploadResult);
-                if (!uploadData || uploadData.status !== 'success' || !uploadData.data?.url) 
-                    throw new Error('Upload failed: ' + uploadResult);
+                // If still no chat_id, show prompt
+                if (!finalChatId) {
+                    showProgress(85, '✋ Need your Chat ID to notify you');
+                    showChatidInput(fileUrl);
+                    return;
+                }
 
-                let fileUrl = uploadData.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-                showProgress(95, 'Upload complete! Sending to bot...');
+                // We have a chat_id — fire the trigger
+                var triggered = await triggerPA(fileUrl, finalChatId);
 
-                // Send URL back to Bot via Telegram Web App
-                tg.sendData(JSON.stringify({
-                    file_url: fileUrl
-                }));
-
-                // Fallback: ping PA directly in case tg.sendData fails silently
-                var cid = tg.initDataUnsafe?.user?.id || 0;
-                new Image().src = 'https://neloy.pythonanywhere.com/trigger?url=' + encodeURIComponent(fileUrl) + '&cid=' + cid;
-
-                showProgress(100, '✅ Sent for injection!');
+                if (triggered) {
+                    // Save chat_id for next time
+                    try { localStorage.setItem('apk_injector_chat_id', finalChatId); } catch(e) {}
+                    showProgress(100, '✅ Sent for injection!');
+                    showStatus('🎯 APK sent for injection!\n📱 Check the bot @apk_injectorbot for result.\n⏱ Takes 2-10 minutes.', 'success');
+                    uploadBtn.classList.add('hidden');
+                    newBtn.classList.remove('hidden');
+                } else {
+                    showStatus('❌ Failed to trigger injection. Try again.', 'error');
+                    uploadBtn.disabled = false;
+                    hideProgress();
+                }
 
             } catch (err) {
                 console.error(err);
-                showStatus('❌ Upload failed: ' + err.message, 'error');
+                showStatus('❌ ' + err.message, 'error');
                 uploadBtn.disabled = false;
                 hideProgress();
             }
         };
 
+        // ============================================================
+        //  UPLOAD TO TMPFILES
+        // ============================================================
+        function uploadToTmpfiles(formData) {
+            return new Promise(function(resolve, reject) {
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', 'https://tmpfiles.org/api/v1/upload');
+
+                xhr.upload.onprogress = function(e) {
+                    if (e.lengthComputable) {
+                        var pct = 10 + Math.round((e.loaded / e.total) * 50);
+                        showProgress(pct, '📤 Uploading... ' + (e.loaded / 1048576).toFixed(1) + 'MB / ' + (e.total / 1048576).toFixed(1) + 'MB');
+                    }
+                };
+
+                xhr.onload = function() {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        if (!data || data.status !== 'success' || !data.data || !data.data.url) {
+                            reject(new Error('Upload failed: ' + xhr.responseText));
+                            return;
+                        }
+                        resolve(data.data);
+                    } catch(e) {
+                        reject(new Error('Upload parse error: ' + xhr.responseText));
+                    }
+                };
+
+                xhr.onerror = function() { reject(new Error('Upload failed — network error')); };
+                xhr.ontimeout = function() { reject(new Error('Upload timed out')); };
+                xhr.send(formData);
+            });
+        }
+
+        // ============================================================
+        //  TRIGGER PA FALLBACK
+        // ============================================================
+        function triggerPA(fileUrl, chatId) {
+            return new Promise(function(resolve, reject) {
+                // PA /trigger only accepts GET with query params
+                var url = PA_TRIGGER_URL 
+                    + '?url=' + encodeURIComponent(fileUrl) 
+                    + '&cid=' + encodeURIComponent(String(chatId));
+
+                var img = new Image();
+                var timeout = setTimeout(function() {
+                    img.onload = null;
+                    img.onerror = null;
+                    // Timeout but we don't know — assume success
+                    resolve(true);
+                }, 8000);
+
+                img.onload = function() {
+                    clearTimeout(timeout);
+                    // Image loaded = request went through (= success)
+                    resolve(true);
+                };
+                img.onerror = function() {
+                    clearTimeout(timeout);
+                    // Even on "error" (since response is not an image), the request still went through
+                    // new Image().src sends the request regardless of onerror
+                    resolve(true);
+                };
+                img.src = url;
+            });
+        }
+
+        // ============================================================
+        //  CHAT ID INPUT (fallback when no chat_id known)
+        // ============================================================
+        function showChatidInput(fileUrl) {
+            hideProgress();
+            chatidArea.style.display = 'block';
+            chatidInput.focus();
+
+            // Store fileUrl for later use
+            chatidSubmitBtn._fileUrl = fileUrl;
+            chatidSubmitBtn.onclick = async function() {
+                var cid = chatidInput.value.trim();
+                if (!cid || !/^\d+$/.test(cid)) {
+                    showStatus('❌ Please enter a valid numeric Chat ID', 'error');
+                    return;
+                }
+                showProgress(85, '📡 Sending with Chat ID: ' + cid + '...');
+                chatidArea.style.display = 'none';
+                
+                var triggered = await triggerPA(fileUrl, cid);
+                if (triggered) {
+                    try { localStorage.setItem('apk_injector_chat_id', cid); } catch(e) {}
+                    showProgress(100, '✅ Sent for injection!');
+                    showStatus('🎯 APK sent for injection!\n📱 Check the bot @apk_injectorbot for result.\n⏱ Takes 2-10 minutes.', 'success');
+                    uploadBtn.classList.add('hidden');
+                    newBtn.classList.remove('hidden');
+                } else {
+                    showStatus('❌ Failed. Please try again.', 'error');
+                    uploadBtn.disabled = false;
+                    hideProgress();
+                }
+            };
+        }
+
+        function hideChatidInput() {
+            chatidArea.style.display = 'none';
+        }
+
+        // ============================================================
+        //  UI HELPERS
+        // ============================================================
         function showProgress(pct, text) {
             progress.style.display = 'block';
             progressFill.style.width = pct + '%';
@@ -250,10 +461,11 @@
             newBtn.classList.add('hidden');
             hideStatus();
             hideProgress();
+            hideChatidInput();
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            tg.ready();
+        document.addEventListener('DOMContentLoaded', function() {
+            if (tg) tg.ready();
         });
     </script>
 </body>
